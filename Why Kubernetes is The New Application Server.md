@@ -1,6 +1,6 @@
 # 为什么 Kubernetes 是新的应用服务器
 
-> 观看原文请点击[连接](https://developers.redhat.com/blog/2018/06/28/why-kubernetes-is-the-new-application-server/)。
+> 观看原文请点击[这里](https://developers.redhat.com/blog/2018/06/28/why-kubernetes-is-the-new-application-server/)。
 
 你想过你为什么要使用容器来部署你的多平台应用吗？只是为了赶时髦吗？在这篇文章中，我将通过几个尖锐的问题来表明我对“为什么 Kubernetes 是新的应用服务器”的看法。
 
