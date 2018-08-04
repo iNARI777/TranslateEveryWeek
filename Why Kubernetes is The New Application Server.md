@@ -92,3 +92,25 @@ Kubernetes 的认证也可以通过 Istio 的 mutual TLS authentication 提供�
 ### 9 - 跟踪
 
 使用 Istio 的应用可以被配置为使用 Zipkin 或者 Jaeger 收集追踪范围。Istio 可以进行分布式追踪，并且无视你的应用使用的语言、框架以及平台。参见 https://learn.openshift.com/servicemesh/3-monitoring-tracing 。以及 [Getting Started with Istio and Jaeger on your laptop](https://developers.redhat.com/blog/2018/05/08/getting-started-with-istio-and-jaeger-on-your-laptop/) 和 [Advanced microservices tracing with Jaeger](https://developers.redhat.com/blog/2018/06/20/next-devnation-live-advanced-microservices-tracing-with-jaeger-june-21st-12pm-edt/) 。
+
+## 那么应用服务器就玩完了吗？
+
+仔细看看这些功能，你会发现 Kubernetes + OpenShift + Istio 确实可以捕鼠器你的应用，并且提供应用服务器以及向 Netflix OSS 这样的框架所能提供的特性，那么这就代表应用服务器应玩完了吗？
+
+在这个新的容器时代，应用容器开始转变为类似于框架的存在。软件开发的演化自然导致了应用服务器的演化，这种演进的一个很好的例子是 Eclipse MicroProfile 规范，它将 WildFly Swarm 作为应用程序服务器，它提供了诸如容错、配置、跟踪、REST（客户端和服务器）等开发人员的特性。然而，他俩都被设计的非常轻量化，WildFly Swarm 没有完整的 Java enterprise 应用服务器所需要的一大串组件，它更专注于微服务并只包含足够应用服务器构建所用的组件，让你像运行一个 .jar 文件一样运行你的应用。可以通过[这篇博客](https://developers.redhat.com/blog/tag/microprofile/)阅读更多关于 MicroProfile 的内容。
+
+此外， Java 应用还可以获得诸如 Servlet 引擎、 datasource pool 、依赖注入、事务、消息传递等特性。当然，框架就可以提供这些特性，但是一个应用服务器同时还在任意一种环境中包含所有的你用来进行构建、运行、部署以及管理的企业级应用所用到的东西，不管他们是否在容器中。事实上，应用服务器可以在任何地方执行，比如在裸金属（ Barematel ）上、在如 Red Hat Virtualization 的虚拟平台上、在如 Red Hat OpenStack 的云环境上以及如 Azure 和 AWS 这样的共有云环境上。
+
+一个好的应用服务器确保提供的 API 和它们的实现之间的一致性。开发人员可以确保部署他们的需要特定功能的业务逻辑可以正常运行，因为因为应用程序服务器开发人员（以及已定义的标准）确保了这些组件协同工作并一起发展。另外，一个好的应用服务器也应当最大化吞吐量和可伸缩性，因为它将会处理所有的用户请求；也应当具有低延时、低加载时间，因为它可以让你的应用更加可用；还需要封装的更加轻量，来最小化硬件资源的开销；最后，还需要足够的安全性来抵抗任何网络攻击。对于 Java 开发者来说， Red Hat 提供了 JBoss 平台，它是一个可以覆盖所有这些需求的、现代的、模块化的应用服务器。
+
+## 结论
+
+容器镜像已经成为了分发原生云应用的标准打包格式。虽然容器“本身”并不能为应用程序提供真正的业务优势，但是 Kubernetes 及其相关的项目，如 OpenShift 和 Istio ，提供了以前作为应用程序服务器一部分的非功能性需求。
+
+大多数这些开发者们从应用服务器或者如 Netflix OSS 之类的库中得到的非功能的需求，都绑定了一种特定的语言，比如 Java 。另一方面，开发者们在选择 Kubernetes + OpenShift + Istio 来满足他们的需求的时候，他们并没有被束缚在任何一种特定的语言上，这就鼓励了在各种实际情况下使用最佳的技术/语言。
+
+最后，应用服务器在软件开发中仍占有一席之地。但是他们在转变成为一种更像在开发应用的时候使用的特定语言的框架，因为它们包含了很多已经写好并经过测试的功能。
+
+使用容器、 Kubernetes 和微服务的最大的好处之一就是你不需要再为你的服务选择一个单一的应用服务器、框架、架构风格甚至是语言。你可以很容易的部署一个带有运行着你的现有的 Java EE 应用的 JBoss EAP 的容器，并且部署其他容器有着新的使用 Wildfly Swarm 的微服务，或者响应式编程的 Eclipse Vert.x 。所有这些容器都可以通过 Kubernetes 进行管理。如果要实际看看这些概念，可以看看 [Red Hat OpenShift Application Runtimes](https://developers.redhat.com/products/rhoar/overview/) 。使用 LAUNCH 服务来构建和部署一个使用 WildFly Swarm/Vert.x/Spring Boot/Node.js 的在线 app 。选择 Externalized Configuration mission 来学习如何使用 Kubernetes ConfigMaps 。这将开启你的原生云应用之路。
+
+你可以说 Kubernetes/OpenShift 是新的 Linux 甚至“ Kubernetes 是新的应用服务器”。但是事实是应用服务器/runtime + OpenShift/Kubernetes + Istio 已经成为了事实上的原生云应用平台！
