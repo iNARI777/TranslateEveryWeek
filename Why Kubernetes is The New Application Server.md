@@ -1,6 +1,6 @@
 # 为什么 Kubernetes 是新的应用服务器
 
-> 由 iNARI777 翻译，观看原文请点击[连接](https://developers.redhat.com/blog/2018/06/28/why-kubernetes-is-the-new-application-server/)，菜鸟翻译请多多包涵
+> 观看原文请点击[连接](https://developers.redhat.com/blog/2018/06/28/why-kubernetes-is-the-new-application-server/)。
 
 你想过你为什么要使用容器来部署你的多平台应用吗？只是为了赶时髦吗？在这篇文章中，我将通过几个尖锐的问题来表明我对“为什么 Kubernetes 是新的应用服务器”的看法。
 
@@ -114,3 +114,6 @@ Kubernetes 的认证也可以通过 Istio 的 mutual TLS authentication 提供�
 使用容器、 Kubernetes 和微服务的最大的好处之一就是你不需要再为你的服务选择一个单一的应用服务器、框架、架构风格甚至是语言。你可以很容易的部署一个带有运行着你的现有的 Java EE 应用的 JBoss EAP 的容器，并且部署其他容器有着新的使用 Wildfly Swarm 的微服务，或者响应式编程的 Eclipse Vert.x 。所有这些容器都可以通过 Kubernetes 进行管理。如果要实际看看这些概念，可以看看 [Red Hat OpenShift Application Runtimes](https://developers.redhat.com/products/rhoar/overview/) 。使用 LAUNCH 服务来构建和部署一个使用 WildFly Swarm/Vert.x/Spring Boot/Node.js 的在线 app 。选择 Externalized Configuration mission 来学习如何使用 Kubernetes ConfigMaps 。这将开启你的原生云应用之路。
 
 你可以说 Kubernetes/OpenShift 是新的 Linux 甚至“ Kubernetes 是新的应用服务器”。但是事实是应用服务器/runtime + OpenShift/Kubernetes + Istio 已经成为了事实上的原生云应用平台！
+
+
+> 由 *iNARI777* 翻译，菜鸟翻译请多多包涵
