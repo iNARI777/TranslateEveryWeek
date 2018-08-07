@@ -55,3 +55,38 @@ Kubernetes 自带了一个内置的仪表盘。你可以通过以下指令通过
 在接下来的教程中，我们会通过部署多个容器镜像来展示 Kubernetes 的一些特性。Kubernetes 使用 Docker 来获得和运行容器镜像，这代表着它使用的是常规的 Docker 容器的 pull 逻辑。这篇教程的目的是让你能够尽快的使用 Kubernetes 来运行你的服务，因此，我推荐你使用 Minikube 内的 Docker 而不是你本地的 Docker 。你可以通过 `eval $(minikube docker-env)` 来配置你的 Docker 来达到这一目的。现在，你可以从 Minikube 中得到很多的镜像，你可以通过 `docker ps` 来确认，如果有很多镜像来自 `gcr.io/google_containers` 就证明你做对了。这个到 Minikube 内部的 Docker Service 的代理只在当前 Shell 中有效，如果你起了另一个 Shell ，你还将使用你本地的 Docker 。
 
 如果你对自己构建相同的 service 不感兴趣，你也可以从我的 [Docker.io](https://hub.docker.com/r/afroisalreadyin/) 中获得相同的镜像。
+
+## 运行一个服务
+
+我们从运行一个能够告诉我们集群中是否有 pod 正在运行的命令开始。我们要使用前面提到的 kubectl 客户端来运行 `kubectl get pods` 这条命令。我稍后会解释什么是 pod 。如果你按照我之前说的正确配置了客户端，那么你就能看到 `No resources found` 的信息。这个过程中 kubectl 做的事情是连接到配置中当前活跃的上下文的 minikube 上运行的 Kubernetes 集群，并展示出结果信息。kubectl 只是众多 API 客户端中的一个，比如 Python 客户端也是官方提供支持的一个。你可以通过增加一个 `--v=7` 参数来查看 kubectl 发送的 API 请求，但是要注意，这可能导致大量的文本输出。
+
+Kubernetes 不会自己去找我们要运行什么，所以我们还要继续，并让它运行一个简单的应用，比如说 Kubernetes 的示例库中的简单 Python 应用。你首先需要克隆这个仓库，并寻找 `simple-python-app` 子文件夹，并使用如下指令来创建一个容器镜像：
+
+    docker build -t kubetutorial/simple-python-app:v0.0.1
+
+只要构建开始，你就可以在 `docker images` 的运行结果中看到它。确认完成之后我们就可以准备运行我们的第一个 Kubernetes 命令：
+
+    kubectl run simple-python-app \
+     --image=kubetutorial/simple-python-app:v0.0.1 \
+     --image-pull-policy=IfNotPresent \
+     --port=8080
+
+很明显这条指令通过某种方式运行了我们刚刚构建的那个镜像，因为这个镜像的标签被传递给了 `--image` 这个参数。 `imagePullPolicy=IfNotPresent` 这个参数告诉 Docker 如果一个本地镜像存在的话就不用再尝试去 pull 它了。我们同时给出了这个服务所在的端口。这个端口一定要与应用绑定的端口一致，如果我们不提供这个信息， Kubernetes 就无法得知要是用哪个端口来连接这个应用。一个小提示：这个示例服务需要在通用接口 `0.0.0.0` 上绑定，而不是 `localhost` 或者 `127.0.0.1` 。
+
+我们如何通过 Kubernetes 连接我们的服务呢？这个时候就是介绍 [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) 这个 Kubernetes 中最重要的抽象概念的最佳时机了。同其他抽象概念一样， pod 是 Kubernetes API 资源，我们可以使用 kubectl 列出和查询它们。我们使用 `kubectl get pods` 来看看哪些 pod 正在运行。输出的结果大概是这个样子的：
+
+|NAME|READY|STATUS|RESRARTS|AGE|
+|----|-----|------|--------|---|
+|simple-python-app-68543294-vhj7g|1/1|Running|0|21s|
+
+很好！已经有一个 pod 在运行了，但是到底 pod 是什么？ pod 是 Kubernetes 中的基础应用单元。它是一个合成整体的容器们的集合，并且这些容器的生命周期也是统一管理的。这些容器部署在同一个节点，共享同一个操作系统 namespace ，存储卷以及 IP 地址。它们可以通过 localhost 相互联系，并且使用可以使用系统级的 IPC 机制比如共享内存。一个 pod 中包含些什么取决于在部署、水平扩展以及复制等方面上，作为一个单元的是什么。比如说，把一个数据存储的容器和一个应用容器放在一个 pod 中就是没有意义的，因为它们在扩展和复制方面都是彼此独立的。而真正应该与应用容器放在一起的应该是像进行日志聚合操作这样的容器。
+
+现在我们知道了什么是 pod ，能够得到正在运行的 pod 的名字，也能通过我们之前使用的 kubectl proxy 来向 pod 发出请求。只要 proxy 在运行，你就可以通过前面的命令中声明的端口来访问 `simple-python-app` 容器。
+
+    curl http://localhost:8001/api/v1/proxy/namespaces/default/pods/simple-python-app-68543294-vhj7g
+
+我们也可以使用 `kubectl logs simple-python-add-68543294-vhj7g` 来查看 pod 的日志，它会展示我们的应用的标准输出。同样，我们使用下面的命令也可以像使用 `docker exec` 一样，在容器中执行命令。
+
+    kubectl exec -ti simple-python-app-68543294-vhj7g CMD
+
+想在 Docker 中一样， `-it` 表示需要分配一个 tty 并在交互模式下运行命令。 `kubectl exec` 允许你使用 `-c` 来选择容器。缺省情况下，如果 pod 中只有一个容器，那么默认使用的就是是 pod 中的这个唯一容器。
