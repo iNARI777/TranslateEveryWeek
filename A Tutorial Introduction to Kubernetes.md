@@ -90,3 +90,40 @@ Kubernetes 不会自己去找我们要运行什么，所以我们还要继续，
     kubectl exec -ti simple-python-app-68543294-vhj7g CMD
 
 想在 Docker 中一样， `-it` 表示需要分配一个 tty 并在交互模式下运行命令。 `kubectl exec` 允许你使用 `-c` 来选择容器。缺省情况下，如果 pod 中只有一个容器，那么默认使用的就是是 pod 中的这个唯一容器。
+
+## pod 由谁来创建？
+
+Kubernetes 在一个 pod 中运行我们的容器，我们还想知道 pod 到底是从哪来的，我们并没有让 Kubernetes 去创建一个 pod 。实际上，在 Kubernetes 中很少会让人手动去创建 pod 。如果用户想要自己去编排他的应用单元，并保证其可用性， Kubernetes 就不会新建 pod 。上面的 `kubectl run` 命令会开展一个新的部署（ Deployment ），可以通过如下指令列出这些部署：
+
+    $ kubectl get deployments
+    NAME                DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+    simple-python-app   1         1         1            1           1s
+
+Deployment 是 Kubernetes 中的一种特殊的资源，他们负责管理应用容器的生命周期。这种资源可以被称作为 controller ，他们可以算是 Kubernetes 的核心。你可以通过 `kubectl describe deployments simple-python-app` 来获得 Deployment 的更多详细信息。`describe` 这个子命令十分有用，你可以通过它获得所有资源的详细信息。它同样会列出与被描述的资源相关的资源以及时间的信息。对于这个 Deployment 来说，你可以通过 `kubectl describe` 看到不少信息。首先，有一个叫做 pod template 的东西，这个东西是用来在 Deployment 扩展的时候用来创建 pod 的。
+
+那么当我们删除一个 pod 的时候会发生什么呢？为了实时的观察发生了什么，我建议你打开第二个终端，并在其中运行 `kubectl get pods -w` 。`-w` 选项会定时更新输出的信息。现在，使用 `kubectl delete pod simple-python-app-68543294-vhj7g` 删除已经存在的 pod 。在你观察 pod 列表的终端会暂时出现以下这种状态：
+
+    NAME                                 READY     STATUS        RESTARTS   AGE
+    simple-python-app-5c9ccf7f5d-8lbb2   1/1       Running       0          4s
+    simple-python-app-5c9ccf7f5d-kl77s   1/1       Terminating   0          43s
+
+在一个 pod 被删除的时候，另一个已经被创建了（ STATUS 也有可能是 ContainerCreating 而不是 RUNNING ）。Replica Sets 负责进行这种再创建。你可以使用 `kubectl describe` 看到 replica sets 属于一个 Deployment ，它列表的底部，在 events 之前。你可以看到两种列表：OldReplicaSets 和 NewReplicaSets 。两者之间的区别我会在后面的章节进行阐释。你也可以使用 `kubectl get replicasets` 命令列出 replica sets 。
+
+使用 `kubectl describe replicaset $REPLICA_SET_NAME` 看看我们的 Deployment 创建的 replica set ，我们可以稍微看看下面几行：
+
+    # ... snip
+    Replicas:       1 current / 1 desired
+    Pods Status:    1 Running / 0 Waiting / 0 Succeeded / 0 Failed
+    Pod Template:
+    Labels:       pod-template-hash=4035281104
+                    run=simple-python-app-2
+    Containers:
+        simple-python-app:
+            Image:              kubetutorial/simple-python-app:v0.0.1
+            Port:               8080/TCP
+            Environment:        <none>
+            Mounts:             <none>
+            Volumes:              <none>
+    Events:                 <none>
+
+这个 replica set 负责保持我们的一个 simple-python-app 容器的 pod 处于运行状态，并且可以通过 1 current / 1 desired 可以判断它做到了。但是和 pod 一样，一般 replica set 也是由 Deployment 创建的，所以不必手工创建或修改它们。
