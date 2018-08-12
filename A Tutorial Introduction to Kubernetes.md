@@ -127,3 +127,55 @@ Deployment 是 Kubernetes 中的一种特殊的资源，他们负责管理应用
     Events:                 <none>
 
 这个 replica set 负责保持我们的一个 simple-python-app 容器的 pod 处于运行状态，并且可以通过 1 current / 1 desired 可以判断它做到了。但是和 pod 一样，一般 replica set 也是由 Deployment 创建的，所以不必手工创建或修改它们。
+
+## 网络知识简介
+
+虽然 Replica Set 很棒很有通，但是他们对高可用并没有太大的帮助。在一个 pod 宕机的时候，会新起一个 pod ，但是它有一个不同的名字、一个不同的 IP 地址，并且有可能运行在一个完全不同的节点之上。还有，如果我们想在这些 Replica 之间做负载均衡的时候应该怎么办？如果 Kubernetes 仅仅提供了基于 pod 名的服务发现功能的话，那么这些服务的客户端就需要在客户端一侧来做负载均衡，并且保存一份 pod 的列表，这个列表需要在所有 pod 的生命周期时间发生的时候进行更新。还有如何将流入的流量路由到相应的服务呢？这些都是一些需要被简化的讨厌的问题。 Kubernetes 提供了非常简单的机制来实现高可用、负载均衡以及服务路由（ Ingress ）。所有的这些都基于 [Kubernetes node 和 pod 的网络要求](https://kubernetes.io/docs/concepts/cluster-administration/networking/#kubernetes-model)：
+
+* 所有的 **容器** 可以在不使用 NAT 的情况下与其他的所有 **容器** 进行通信；
+* 所有的 **节点（ Node ）** 可以在不使用 NAT 的情况下与所有 **容器** （反之亦然）进行通信；
+* **容器** 看到的自己的 IP 地址与其他容器看到的它的 IP 地址应该相同。
+
+可以使用任何一种[符合这种模型的网络选项](https://kubernetes.io/docs/concepts/cluster-administration/networking/#how-to-achieve-this)，其中 kubenet 是默认的一种配置。上面这些的要求听起来相对来说比较直观。我们可能认为每一个应用容器都会有一个它的 IP ，但实际上并不是这样，只有 pod 才有它自己的 IP 地址。如官方文档所示：
+
+> 目前为止，本文档讨论了容器。事实上， Kubernetes 在 pod 这一级上分配 IP 地址。 同一个 pod 下的容器共享同一个网络命名空间，包括 IP 地址。
+
+你同样可以通过 `kubectl get pods -o wide` 获得容器的私有 IP 地址来验证 pod 可以通过 IP 上的暴露端口来访问。然后，通过 `minikube ssh` 来登录到 Minikube 的 Node 上，你可以通过这个节点，使用 `curl $IP_ADDRESS:8080` 来请求这个服务。
+
+那么属于同一个 Replica Set 的 pod 为了高可用、负载均衡以及服务发现的功能是如何组织的呢？说明这个问题的答案之前，首先要介绍另一个 Kubernetes 的概念。
+
+## Services
+
+我之前一直称呼我们那个用来演示的小型 Web App 为一个 Service ，但是在 Kubernetes 中， Service 有着完全不同的含义。一个 Kubernetes Service 就是一个允许一组松耦合的 pod 进行负载均衡、服务发现以及路由的抽象概念。通过 Service ， pod 可以在不影响应用可用性的情况下被替换和转移。我们可以看一个简单的例子——通过下面的指令，将我们的简单 Python 应用转化为一个 Service ：
+
+  kubectl expose deploy simple-python-app --port 8080
+
+如果现在你运行 `kubectl expose deploy simple-python-app --port 8080` ，你应该能看到一个有两个项的列表： `kubernetes` 和 `simple-python-app` 。 `kubernetes` 服务是基础设施的一部分，你不应该随意改动它。另一个服务就是我们要找的，尤其是列在 `CLUSTER-IP` 这一列下的 IP 地址。我们队这个 IP 地址感兴趣，这是因为它是一种特殊的东西，它是 Kubernetes 为这个新服务保留的一个虚拟 IP 地址。在同一段输出中，你可以看到 8080 端口被暴露出来。你现在可以使用 `minikube ssh` 登陆上 Minikube VM（其上运行着 Kubernetes Node），并使用 `kubectl expose deploy simple-python-app --port 8080` 来请求我们的新服务，它同样会正常返回。我们之前提到的网络要求确保了从这个 Node 到 Service IP 的可到达性。
+
+当我们在一个 Replica Set 中使用多个 Pod 的时候，事情会变得更加有趣。为了看看影响，我们使用另一个会在其应答中返回更多信息的服务。这个服务在 `kubernetes-repository` 中的 `env-printer-app` 。当我们调用它的基本路径的时候，它会返回给我们它的环境变量。像前面的服务一样，我们可以使用如下指令创建一个容器：
+
+  docker build -t kube-tutorial/env-printer-app:v0.0.1 .
+
+我们将 Replica 的数量设置为 3 来启动这个 Deployment ，他将让 Kubernetes 用过正确的方式启动3个 pod 。我们使用下面的指令：
+
+  kubectl run env-printer-app \
+   --image=kube-tutorial/env-printer-app:v0.0.1 \
+   --image-pull-policy=Never \
+   --replicas=3 \
+   --port=8080
+
+现在，我们通过暴露这个 Deployment 来创建一个 Service ，但我们要在之前用的命令上做些修改：
+
+  kubectl expose deploy env-printer-app --port 8080
+
+一个名为 `env-printer-app` 的新服务会出现在 `kubectl get services` 的输出中。将 `CLUSTER-IP` 下的 IP 地址记为 `$IP_ADDRESS` 。并通过 ssh 登录到 minikube 上。然后运行几次下面的指令：
+
+  curl -s $IP_ADDRESS:8080 | grep HOSTNAME
+
+你应该能观察到 HOSTNAME 的值会在多个 pod 的名字之间变化。 Kubernetes 帮助我们将请求将请求分发到了不同的 pod 上，给了我们开箱即用的负载均衡功能。
+
+这个短小的 demo 给我们映出了更多的问题。比如说 Service 在一个请求进来的时候怎么知道将它分配到哪个 pod 上？我们只能在集群内部访问我们的服务吗？我们如何从外部访问它？在我们能回答这些问题之前，我们首先需要通过一个更好的方式来看 Deployment 、 Service 以及其他资源。
+
+## 使用命令行 VS. 使用清单文件
+
+到目前为止，我们已经通过 `kubectl` 来使用了命令行接口。我们一直使用它，因为它的功能很完整，但是它不容易读、分享以及在一个仓库中进行组织。一种更好的组织 Kubernetes 资源的方法是使用清单文件。这些文件可能是 YAML 或是 JSON（YAML 更受欢迎），它有着更加结构化的格式来组织待创建资源和要执行的操作。一个清单文件采用的格式是使用一个带有元数据不同种类资源的列表以及一个 `spec` 。在实践中常见且推荐的一种做法是声明 API 的版本。每个不同的表项要使用三个破折号来分割，它在 YAML 中表示开启一个新的文档。这个分隔符是强制的，如果你不加它的话只有列表中的第一个表项会被处理。
