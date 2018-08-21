@@ -179,3 +179,27 @@ Deployment 是 Kubernetes 中的一种特殊的资源，他们负责管理应用
 ## 使用命令行 VS. 使用清单文件
 
 到目前为止，我们已经通过 `kubectl` 来使用了命令行接口。我们一直使用它，因为它的功能很完整，但是它不容易读、分享以及在一个仓库中进行组织。一种更好的组织 Kubernetes 资源的方法是使用清单文件。这些文件可能是 YAML 或是 JSON（YAML 更受欢迎），它有着更加结构化的格式来组织待创建资源和要执行的操作。一个清单文件采用的格式是使用一个带有元数据不同种类资源的列表以及一个 `spec` 。在实践中常见且推荐的一种做法是声明 API 的版本。每个不同的表项要使用三个破折号来分割，它在 YAML 中表示开启一个新的文档。这个分隔符是强制的，如果你不加它的话只有列表中的第一个表项会被处理。
+
+在 [Kubernetes API 文档](https://kubernetes.io/docs/api-reference/v1.7/)中详细记录了资源规范。而更好的是， `kubectl` 命令是自描述的。如果想要得到有关 pod 的文档，执行 `kubectl explain pods` 命令就可以了。这条指令会打印出一个 pod 清单可以包含的各个字段，同时在前面会附加一小段描述。为了更深入这个清单树，你可以运行比如 `kubectl explain pod.metadata.labels` 的指令，它将会给出更多有关单个字段的详细信息。
+
+如果你在在线文档或命令行文档中看了 Deployment 的入口，你会看到所有资源的元数据字段都是相同的，并且名字字段是必须的。这个字段让我们能够在命令中来引用它们，获得它们的详细信息或者删除它们，或者在其他清单文件中进行交叉引用。 spec 字段需要遵循 `DeploymentSpec` 配置，该配置应该有一个模板字段来描述将要部署的 pod 。反过来，这个模板必须要有它自己的元数据字段，以及一个包含了一个容器列表的 spec 字段。下面是一建立上述 Deployment 的 YAML 格式的例子：
+
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+        name: env-printer-app
+    spec:
+        replicas: 3
+        template:
+            metadata:
+                labels:
+                    app: env-printer-app
+            spec:
+                containers:
+                - image: twyla.io/env-printer-app:v.0.0.1
+                  imagePullPolicy: IfNotPresent
+                  name: env-printer-app
+
+从中我们有可能看到嵌套资源的共同模式，它们都有元数据，用于相互引用，模板用来告诉 Kubernetes 创建何种资源。还有很多其他的辅助信息，比如说 replica 字段。现在，你可以继续使用这个 YAML 文件，将它保存为 `kubernetes-repository/env-printer-app` 文件夹下的 `deploy.yaml` ，然后通过 `kubectl apply -f deploy.yaml` 来创建一个 Deployment 。
+
+你可以使用 `kubectl get KIND NAME -o yaml` 来获得一个资源的 YAML 格式的详细描述。这个 YAML 文档相比你创建一个资源时提供的信息，可能包含了更多的信息，比如说被你缺省的默认配置以及那些由 Kubernetes 计算和设置的值。另一项非常棒依赖于 YAML 表示方法的特性是可以通过 `kubectl edit KIND NAME` 对资源进行编辑。这条指令将会取回资源的描述信息并将其加载到 `EDITOR`（或者 `KUBE_EDITOR` ）环境变量指定的编辑器中。只要你保存并退出，新的资源描述就会被应用到资源上。这是一种快速尝试解决方案的好方法，而不需要保留多个版本的资源定义。
