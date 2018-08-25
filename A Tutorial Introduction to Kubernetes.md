@@ -203,3 +203,7 @@ Deployment 是 Kubernetes 中的一种特殊的资源，他们负责管理应用
 从中我们有可能看到嵌套资源的共同模式，它们都有元数据，用于相互引用，模板用来告诉 Kubernetes 创建何种资源。还有很多其他的辅助信息，比如说 replica 字段。现在，你可以继续使用这个 YAML 文件，将它保存为 `kubernetes-repository/env-printer-app` 文件夹下的 `deploy.yaml` ，然后通过 `kubectl apply -f deploy.yaml` 来创建一个 Deployment 。
 
 你可以使用 `kubectl get KIND NAME -o yaml` 来获得一个资源的 YAML 格式的详细描述。这个 YAML 文档相比你创建一个资源时提供的信息，可能包含了更多的信息，比如说被你缺省的默认配置以及那些由 Kubernetes 计算和设置的值。另一项非常棒依赖于 YAML 表示方法的特性是可以通过 `kubectl edit KIND NAME` 对资源进行编辑。这条指令将会取回资源的描述信息并将其加载到 `EDITOR`（或者 `KUBE_EDITOR` ）环境变量指定的编辑器中。只要你保存并退出，新的资源描述就会被应用到资源上。这是一种快速尝试解决方案的好方法，而不需要保留多个版本的资源定义。
+
+## Service ，续
+
+好了，我们说到哪了？我们现在有了一些运行在通过 Development 预分配和保持的 pod 里的 container 了，并把它们塞进了有着同一个 IP 地址的 Service 中。我们可以把这些都放进一个或者多个 YAML 文件中。现在这个地方是一个介绍 Kubernetes 中 Selector 这个很有趣并且很通用的特性的好时机。如果你继续想要获得我们刚才通过 `kubectl describe service env-printer-app` 创建的 `env-printer-app` 服务的详细信息，你将会看到一个开头为 ~Selector:~ 。 这个 Selector 配置会告诉你 Kubernetes 如何从 Service 的虚拟 IP 地址中找到相应的 pod 。如果你在查询的同时不做什么骚操作的话，这个 Selector 行的内容应该是 `run=env-printer-app` 。
